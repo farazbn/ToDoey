@@ -7,19 +7,21 @@
 //
 
 import UIKit
-import CoreData
 import RealmSwift
+import ChameleonFramework
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
     
     var realm = try! Realm()
     var categories : Results<Category>?
-
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         loadCategories()
+        tableView.rowHeight = 80.0
+        tableView.separatorStyle = .none
         
     }
     
@@ -31,11 +33,16 @@ class CategoryViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
-        let category = categories?[indexPath.row].name ?? "No Categories Added yet"
+        if let category = categories?[indexPath.row] {
         
-        cell.textLabel?.text = category
+        cell.textLabel?.text = category.name
+            guard let categoryColour = UIColor(hexString: category.colour) else {fatalError()}
+        
+        cell.backgroundColor = categoryColour
+        cell.textLabel?.textColor = ContrastColorOf(categoryColour, returnFlat: true)
+        }
         
         return cell
         
@@ -55,7 +62,7 @@ class CategoryViewController: UITableViewController {
             
             let newCategory = Category()
             newCategory.name = textField.text!
-            
+            newCategory.colour = UIColor.randomFlat.hexValue()
             self.save(category: newCategory)
             
             
@@ -73,7 +80,7 @@ class CategoryViewController: UITableViewController {
     }
     
     //MArk: - TableView Delegate methodes
-
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
         performSegue(withIdentifier: "goToItems", sender: self)
@@ -90,7 +97,7 @@ class CategoryViewController: UITableViewController {
     }
     
     //MARK: - Data Manipulation methodes
-
+    
     func save(category: Category) {
         
         
@@ -113,13 +120,27 @@ class CategoryViewController: UITableViewController {
         
         categories = realm.objects(Category.self)
         
-
+        
         
         tableView.reloadData()
     }
     
-    
-    
-    
+    // MARK - Delete Data from Swipe
+    override func updateModel(at indexPath: IndexPath) {
+        
+        if let categoryForDeletion = self.categories?[indexPath.row] {
+            
+            do {
+                try self.realm.write {
+                    self.realm.delete(categoryForDeletion.items)
+                    self.realm.delete(categoryForDeletion)
+                }
+            } catch {
+                print("error deleting category \(error)")
+            }
+            
+        }
+    }
     
 }
+
